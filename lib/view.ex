@@ -27,7 +27,7 @@ defmodule View do
 
     cells
     |> Stream.map(fn cell ->
-      :wxDC.drawRectangle(dc, cell, @cellSize)
+      :wxDC.drawRectangle(dc, {cell.x, cell.y}, @cellSize)
     end)
     |> Stream.run()
 
@@ -39,6 +39,6 @@ defmodule View do
 
     clear(dc)
 
-    draw_cells(dc, grid.live_cells)
+    draw_cells(dc, Grid.all_cells(grid))
   end
 end
