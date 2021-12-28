@@ -5,7 +5,7 @@ defmodule Canvas do
   @size {600, 600}
 
   def start_link() do
-    :wx_object.start_link(__MODULE__, [], []) |> IO.inspect()
+    :wx_object.start_link(__MODULE__, [], [])
   end
 
   def init(_args \\ []) do
@@ -32,15 +32,10 @@ defmodule Canvas do
   end
 
   def handle_sync_event({:wx, _, _, _, {:wxPaint, :paint}}, _, %{panel: panel}) do
-    brush = :wxBrush.new()
-    gray = Enum.random(1..255)
-    :wxBrush.setColour(brush, {gray, gray, gray, 255})
-
     dc = :wxPaintDC.new(panel)
-    :wxDC.setBackground(dc, brush)
-    :wxDC.clear(dc)
+    grid = Grid.random_init(-20, -20, 20, 20)
+    View.render(grid, dc)
     :wxPaintDC.destroy(dc)
-
     :ok
   end
 
