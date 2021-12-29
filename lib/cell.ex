@@ -1,4 +1,6 @@
 defmodule Cell do
+  @moduledoc "A live cell on a game of life grid."
+
   defstruct [:x, :y]
 
   @type t :: %__MODULE__{

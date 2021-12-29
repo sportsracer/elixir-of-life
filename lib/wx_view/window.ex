@@ -1,4 +1,6 @@
-defmodule Canvas do
+defmodule Window do
+  @moduledoc "Window powered by wxWidgets onto which a game of life grid is rendered."
+
   @behaviour :wx_object
 
   @title "Elixir of Life"
@@ -18,7 +20,7 @@ defmodule Canvas do
     :wxPanel.connect(panel, :paint, [:callback])
     :wxFrame.show(frame)
 
-    state = %{panel: panel}
+    state = %{panel: panel, grid: %Grid{}}
     {frame, state}
   end
 
@@ -31,16 +33,16 @@ defmodule Canvas do
     {:stop, :normal, state}
   end
 
-  def handle_sync_event({:wx, _, _, _, {:wxPaint, :paint}}, _, %{panel: panel}) do
+  def handle_sync_event({:wx, _, _, _, {:wxPaint, :paint}}, _, %{panel: panel, grid: grid}) do
     dc = :wxPaintDC.new(panel)
-    grid = Grid.random_init(-20, -20, 20, 20)
-    View.render(grid, dc)
+    Renderer.render(grid, dc)
     :wxPaintDC.destroy(dc)
     :ok
   end
 
-  def handle_call(:refresh, _from, state = %{panel: panel}) do
+  def handle_call({:render, grid}, _from, state = %{panel: panel}) do
+    new_state = %{state | grid: grid}
     :wxPanel.refresh(panel)
-    {:reply, :ok, state}
+    {:reply, :ok, new_state}
   end
 end

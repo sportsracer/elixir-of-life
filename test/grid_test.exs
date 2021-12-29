@@ -4,7 +4,7 @@ defmodule GridTest do
 
   test "can retrieve cells by coordinate" do
     cell = %Cell{x: 1, y: 2}
-    grid = Grid.from_cells([cell])
+    grid = Grid.from_seed([cell])
 
     assert Grid.at(grid, {1, 2}) == cell
     assert Grid.at(grid, {1, 1}) == nil
@@ -13,7 +13,7 @@ defmodule GridTest do
   test "can retrieve neighbor cells" do
     cell1 = %Cell{x: 2, y: 3}
     cell2 = %Cell{x: -1, y: 6}
-    grid = Grid.from_cells([cell1, cell2])
+    grid = Grid.from_seed([cell1, cell2])
 
     assert Grid.neighbors_of(grid, {1, 2}) == MapSet.new([cell1])
   end
@@ -21,7 +21,7 @@ defmodule GridTest do
   test "can retrieve empty adjacent cells" do
     cell1 = %Cell{x: 2, y: 3}
     cell2 = %Cell{x: -1, y: 6}
-    grid = Grid.from_cells([cell1, cell2])
+    grid = Grid.from_seed([cell1, cell2])
 
     assert Grid.adjacent_empty_positions(grid, {1, 2}) ==
              MapSet.new([
@@ -54,7 +54,7 @@ defmodule GridTest do
 
   test "can run an iterate of the Game of Life!" do
     grid =
-      Grid.from_cells([
+      Grid.from_seed([
         %Cell{x: -1, y: 0},
         %Cell{x: 0, y: 0},
         %Cell{x: 1, y: 0}

@@ -1,19 +1,15 @@
 defmodule ElixirOfLifeApp do
   use Application
 
-  defp refresh_every(pid, ms) do
-    :timer.sleep(ms)
-    :wx_object.call(pid, :refresh)
-    refresh_every(pid, ms)
-  end
-
   def start(_type, _args) do
-    IO.puts("Starting with PID #{inspect(self())})…")
+    "Started app #{inspect self()}" |> IO.puts()
 
-    {:wx_ref, _, _, pid} = Canvas.start_link()
+    # Start model, view and controller
+    grid = Grid.random_init(-20, -20, 20, 20)
+    wx_view = WxView.create()
+    {:ok, pid} = Controller.start_link(grid, wx_view)
 
-    Task.start(fn -> refresh_every(pid, 1000) end)
-
+    # Run until controller process terminates
     ref = Process.monitor(pid)
 
     receive do

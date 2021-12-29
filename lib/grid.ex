@@ -1,5 +1,7 @@
 defmodule Grid do
-  defstruct [:live_cells]
+  @moduledoc "A game of life grid which extends infinitely to all dimensions."
+
+  defstruct live_cells: %{}
 
   @type t :: %__MODULE__{
           live_cells: %{{integer, integer} => Cell.t()}
@@ -18,9 +20,9 @@ defmodule Grid do
                       {1, 1}
                     ])
 
-  @spec from_cells([Cell.t()]) :: t()
-  def from_cells(cells) do
-    live_cells = for cell <- cells, into: %{}, do: {{cell.x, cell.y}, cell}
+  @spec from_seed([Cell.t()]) :: t()
+  def from_seed(seed) do
+    live_cells = for cell <- seed, into: %{}, do: {{cell.x, cell.y}, cell}
     %Grid{live_cells: live_cells}
   end
 
@@ -67,11 +69,10 @@ defmodule Grid do
   def tick(grid) do
     surviving_cells =
       all_cells(grid)
-      |> Stream.filter(fn cell ->
+      |> Enum.filter(fn cell ->
         neighbors = Grid.neighbors_of(grid, {cell.x, cell.y})
         Cell.survives?(MapSet.size(neighbors))
       end)
-      |> MapSet.new()
 
     all_adjacent_empty_cells =
       all_cells(grid)
@@ -84,11 +85,8 @@ defmodule Grid do
         neighbors = Grid.neighbors_of(grid, {x, y})
         Cell.comes_alive?(MapSet.size(neighbors))
       end)
-      |> Stream.map(fn {x, y} -> %Cell{x: x, y: y} end)
-      |> MapSet.new()
+      |> Enum.map(fn {x, y} -> %Cell{x: x, y: y} end)
 
-    new_cells = MapSet.union(surviving_cells, born_cells)
-
-    from_cells(new_cells |> Enum.to_list())
+    from_seed(surviving_cells ++ born_cells)
   end
 end
