@@ -3,38 +3,26 @@ defmodule Grid do
 
   defstruct live_cells: %{}
 
+  @type pos_t :: {integer, integer}
+  @type cells_t :: %{pos_t() => Cell.t()}
   @type t :: %__MODULE__{
-          live_cells: %{{integer, integer} => Cell.t()}
+          live_cells: cells_t()
         }
 
-  @type pos_t :: {integer, integer}
-
-  @neighbor_offsets MapSet.new([
-                      {-1, -1},
-                      {0, -1},
-                      {1, -1},
-                      {-1, 0},
-                      {1, 0},
-                      {-1, 1},
-                      {0, 1},
-                      {1, 1}
-                    ])
-
   @spec from_seed([Cell.t()]) :: t()
-  def from_seed(seed) do
-    live_cells = for cell <- seed, into: %{}, do: {{cell.x, cell.y}, cell}
-    %Grid{live_cells: live_cells}
-  end
+  def from_seed(seed), do: %Grid{live_cells: seed |> Stream.map(&index/1) |> Map.new()}
 
   @spec random_init(integer, integer, integer, integer, float) :: t()
   def random_init(left, top, right, bottom, prob \\ 0.5) do
-    live_cells =
-      for x <- left..right, y <- top..bottom, :rand.uniform() <= prob, into: %{} do
-        {{x, y}, %Cell{x: x, y: y}}
+    seed =
+      for x <- left..right, y <- top..bottom, :rand.uniform() <= prob do
+        %Cell{x: x, y: y}
       end
 
-    %Grid{live_cells: live_cells}
+    Grid.from_seed(seed)
   end
+
+  defp index(cell), do: {{cell.x, cell.y}, cell}
 
   @spec all_cells(t()) :: [t()]
   def all_cells(grid), do: Map.values(grid.live_cells)
@@ -43,9 +31,16 @@ defmodule Grid do
   def at(grid, {x, y}), do: grid.live_cells[{x, y}]
 
   defp adjacent_positions({x, y}) do
-    for {dx, dy} <- @neighbor_offsets, into: MapSet.new() do
-      {x + dx, y + dy}
-    end
+    [
+      {x - 1, y - 1},
+      {x, y - 1},
+      {x + 1, y - 1},
+      {x - 1, y},
+      {x + 1, y},
+      {x - 1, y + 1},
+      {x, y + 1},
+      {x + 1, y + 1}
+    ]
   end
 
   @spec neighbors_of(t(), pos_t()) :: MapSet.t(Cell.t())
@@ -61,32 +56,38 @@ defmodule Grid do
   def adjacent_empty_positions(grid, {x, y}) do
     {x, y}
     |> adjacent_positions()
-    |> Stream.filter(&is_nil(at(grid, &1)))
+    |> Stream.reject(&(Map.has_key?(grid.live_cells, &1)))
     |> MapSet.new()
   end
 
-  @spec tick(Grid.t()) :: Grid.t()
-  def tick(grid) do
-    surviving_cells =
-      all_cells(grid)
-      |> Enum.filter(fn cell ->
-        neighbors = Grid.neighbors_of(grid, {cell.x, cell.y})
-        Cell.survives?(MapSet.size(neighbors))
-      end)
+  @spec surviving_cells(Grid.t()) :: cells_t()
+  def surviving_cells(grid) do
+    grid.live_cells
+    |> Map.filter(fn {pos, _cell} ->
+      neighbors = Grid.neighbors_of(grid, pos)
+      Cell.survives?(MapSet.size(neighbors))
+    end)
+  end
 
+  @spec born_cells(Grid.t()) :: cells_t()
+  def born_cells(grid) do
     all_adjacent_empty_cells =
-      all_cells(grid)
-      |> Stream.flat_map(fn cell -> adjacent_empty_positions(grid, {cell.x, cell.y}) end)
+      Map.keys(grid.live_cells)
+      |> Stream.flat_map(fn pos -> adjacent_empty_positions(grid, pos) end)
       |> Stream.uniq()
 
-    born_cells =
-      all_adjacent_empty_cells
-      |> Stream.filter(fn {x, y} ->
-        neighbors = Grid.neighbors_of(grid, {x, y})
-        Cell.comes_alive?(MapSet.size(neighbors))
-      end)
-      |> Enum.map(fn {x, y} -> %Cell{x: x, y: y} end)
+    all_adjacent_empty_cells
+    |> Stream.filter(fn pos ->
+      neighbors = Grid.neighbors_of(grid, pos)
+      Cell.comes_alive?(MapSet.size(neighbors))
+    end)
+    |> Stream.map(fn {x, y} -> %Cell{x: x, y: y} end)
+    |> Map.new(&index/1)
+  end
 
-    from_seed(surviving_cells ++ born_cells)
+  def tick(grid) do
+    surviving_cells = Task.async(Grid, :surviving_cells, [grid])
+    born_cells = Task.async(Grid, :born_cells, [grid])
+    %Grid{live_cells: Map.merge(Task.await(surviving_cells), Task.await(born_cells))}
   end
 end

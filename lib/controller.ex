@@ -25,11 +25,16 @@ defmodule Controller do
 
   @tick_duration 100
 
-  defp start_game_loop(controller) do
-    :timer.sleep(@tick_duration)
-    GameAgent.tick()
+  defp start_game_loop(controller, iteration \\ 0) do
     View.render(controller.view, GameAgent.grid())
-    start_game_loop(controller)
+
+    time = :timer.tc(GameAgent, :tick, []) |> elem(0) |> div(1_000)
+    "Rendered iteration #{iteration} in #{time} ms" |> IO.puts()
+
+    sleep_time = @tick_duration - time |> max(0)
+    :timer.sleep(sleep_time)
+
+    start_game_loop(controller, iteration + 1)
   end
 
   def start_link(grid, view) do
