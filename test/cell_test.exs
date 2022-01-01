@@ -10,9 +10,12 @@ defmodule CellTest do
   end
 
   test "comes alive if it has 3 neighbors" do
-    assert !Cell.comes_alive?(1)
-    assert !Cell.comes_alive?(2)
-    assert Cell.comes_alive?(3)
-    4..9 |> Enum.each(&assert !Cell.comes_alive?(&1))
+    one_neighbor = MapSet.new([%Cell{x: 0, y: 0}])
+    assert is_nil(Cell.spawn_cell({1, 1}, one_neighbor))
+
+    three_neighbors =
+      one_neighbor |> MapSet.put(%Cell{x: 1, y: 0}) |> MapSet.put(%Cell{x: 2, y: 0})
+
+    assert %Cell{x: 1, y: 1} = Cell.spawn_cell({1, 1}, three_neighbors)
   end
 end

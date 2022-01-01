@@ -2,7 +2,7 @@ defmodule ElixirOfLifeApp do
   use Application
 
   def start(_type, _args) do
-    "Started app #{inspect self()}" |> IO.puts()
+    "Started app #{inspect(self())}" |> IO.puts()
 
     # Start model, view and controller
     grid = Grid.random_init(-20, -20, 20, 20)

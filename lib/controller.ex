@@ -5,7 +5,7 @@ defmodule GameAgent do
 
   def start_link(grid) do
     {:ok, pid} = Agent.start_link(fn -> grid end, name: __MODULE__)
-    "Started game agent #{inspect pid}" |> IO.puts
+    "Started game agent #{inspect(pid)}" |> IO.puts()
   end
 
   def grid(), do: Agent.get(__MODULE__, & &1)
@@ -23,15 +23,17 @@ end
 defmodule Controller do
   defstruct [:view]
 
-  @tick_duration 100
+  @tick_duration 50
 
   defp start_game_loop(controller, iteration \\ 0) do
     View.render(controller.view, GameAgent.grid())
 
     time = :timer.tc(GameAgent, :tick, []) |> elem(0) |> div(1_000)
-    "Rendered iteration #{iteration} in #{time} ms" |> IO.puts()
 
-    sleep_time = @tick_duration - time |> max(0)
+    "Iteration #{iteration}\t#{map_size(GameAgent.grid().live_cells)} cells\t#{time} ms"
+    |> IO.puts()
+
+    sleep_time = (@tick_duration - time) |> max(0)
     :timer.sleep(sleep_time)
 
     start_game_loop(controller, iteration + 1)

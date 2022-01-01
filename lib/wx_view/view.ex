@@ -5,7 +5,7 @@ defmodule WxView do
 
   def create() do
     {:wx_ref, _, _, pid} = Window.start_link()
-    "Started view #{inspect pid}" |> IO.puts()
+    "Started view #{inspect(pid)}" |> IO.puts()
     # TODO: Why does linking the view process not take down the controller on exit?
     # Process.link(pid)
     %WxView{window_pid: pid}

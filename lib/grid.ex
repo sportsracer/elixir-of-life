@@ -16,7 +16,14 @@ defmodule Grid do
   def random_init(left, top, right, bottom, prob \\ 0.5) do
     seed =
       for x <- left..right, y <- top..bottom, :rand.uniform() <= prob do
-        %Cell{x: x, y: y}
+        color =
+          if x < 0 do
+            %Color{r: 255, g: 100, b: 100}
+          else
+            %Color{r: 100, g: 255, b: 100}
+          end
+
+        %Cell{x: x, y: y, trait: color}
       end
 
     Grid.from_seed(seed)
@@ -47,7 +54,7 @@ defmodule Grid do
   def neighbors_of(grid, {x, y}) do
     {x, y}
     |> adjacent_positions()
-    |> Stream.map(&at(grid, &1))
+    |> Stream.map(&Map.get(grid.live_cells, &1))
     |> Stream.reject(&is_nil/1)
     |> MapSet.new()
   end
@@ -56,7 +63,7 @@ defmodule Grid do
   def adjacent_empty_positions(grid, {x, y}) do
     {x, y}
     |> adjacent_positions()
-    |> Stream.reject(&(Map.has_key?(grid.live_cells, &1)))
+    |> Stream.reject(&Map.has_key?(grid.live_cells, &1))
     |> MapSet.new()
   end
 
@@ -77,11 +84,11 @@ defmodule Grid do
       |> Stream.uniq()
 
     all_adjacent_empty_cells
-    |> Stream.filter(fn pos ->
+    |> Stream.map(fn pos ->
       neighbors = Grid.neighbors_of(grid, pos)
-      Cell.comes_alive?(MapSet.size(neighbors))
+      Cell.spawn_cell(pos, neighbors)
     end)
-    |> Stream.map(fn {x, y} -> %Cell{x: x, y: y} end)
+    |> Stream.reject(&is_nil/1)
     |> Map.new(&index/1)
   end
 

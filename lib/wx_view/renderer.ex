@@ -4,7 +4,6 @@ defmodule Renderer do
   @cellSize {1, 1}
   @scale 10
   @background_color {30, 30, 30, 255}
-  @foreground_color {255, 150, 150, 255}
 
   defp set_scale(dc) do
     :wxDC.setUserScale(dc, @scale, @scale)
@@ -22,18 +21,17 @@ defmodule Renderer do
   end
 
   defp draw_cells(dc, cells) do
-    foregroundBrush = :wxBrush.new()
-    :wxBrush.setColour(foregroundBrush, @foreground_color)
-    :wxDC.setBrush(dc, foregroundBrush)
+    cell_brush = :wxBrush.new()
     :wxDC.setPen(dc, :wxPen.new())
 
     cells
-    |> Stream.map(fn cell ->
+    |> Enum.each(fn cell ->
+      TraitBrush.adjust_brush(cell.trait, cell_brush)
+      :wxDC.setBrush(dc, cell_brush)
       :wxDC.drawRectangle(dc, {cell.x, cell.y}, @cellSize)
     end)
-    |> Stream.run()
 
-    :wxBrush.destroy(foregroundBrush)
+    :wxBrush.destroy(cell_brush)
   end
 
   def render(grid, dc) do
@@ -43,4 +41,27 @@ defmodule Renderer do
 
     draw_cells(dc, Grid.all_cells(grid))
   end
+end
+
+defprotocol TraitBrush do
+  @moduledoc "Defines how a cell trait is converted to a color during drawing."
+
+  @fallback_to_any true
+
+  @spec adjust_brush(t, any) :: atom()
+  def adjust_brush(trait, brush)
+end
+
+defimpl TraitBrush, for: Any do
+  @moduledoc "Default implementation which colors cells gray."
+
+  @foreground_color {150, 150, 150, 255}
+
+  @spec adjust_brush(any, any) :: atom()
+  def adjust_brush(_trait, brush), do: :wxBrush.setColour(brush, @foreground_color)
+end
+
+defimpl TraitBrush, for: Color do
+  @spec adjust_brush(Color.t(), any) :: atom()
+  def adjust_brush(color, brush), do: :wxBrush.setColour(brush, color.r, color.g, color.b)
 end
