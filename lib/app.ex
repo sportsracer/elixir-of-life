@@ -30,11 +30,12 @@ defmodule ElixirOfLifeApp do
     {:ok, pid} = Controller.start_link(grid, wx_view)
 
     # Run until controller process terminates
-    ref = Process.monitor(pid)
+    ctrl_ref = Process.monitor(pid)
+    view_ref = Process.monitor(wx_view.window_pid)
 
     receive do
-      {:DOWN, ^ref, _, _, _} ->
-        :ok
+      {:DOWN, ^view_ref, _, _, _} -> Process.exit(pid, :ok)
+      {:DOWN, ^ctrl_ref, _, _, _} -> :ok
     end
 
     {:ok, pid}
