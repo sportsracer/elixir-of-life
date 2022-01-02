@@ -10,6 +10,14 @@ defmodule Color do
           b: c
         }
 
+  @spec make(atom()) :: Color.t()
+  def make(_color)
+
+  def make(:red), do: %Color{r: 200, g: 100, b: 100}
+  def make(:green), do: %Color{r: 100, g: 200, b: 100}
+  def make(:blue), do: %Color{r: 100, g: 100, b: 200}
+  def make(:white), do: %Color{r: 200, g: 200, b: 200}
+
   defimpl Trait do
     @doc "Averages all colors together."
     @spec cross(Color.t(), Enumerable.t(Color.t())) :: Color.t()

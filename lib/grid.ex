@@ -9,33 +9,37 @@ defmodule Grid do
           live_cells: cells_t()
         }
 
-  @spec from_seed([Cell.t()]) :: t()
-  def from_seed(seed), do: %Grid{live_cells: seed |> Stream.map(&index/1) |> Map.new()}
+  # Construction
 
-  @spec random_init(integer, integer, integer, integer, float) :: t()
-  def random_init(left, top, right, bottom, prob \\ 0.5) do
+  @spec from_seed(Enumerable.t(Cell.t())) :: t()
+  def from_seed(seed), do: %Grid{live_cells: seed |> Map.new(&index/1)}
+
+  @spec random_init(integer, integer, integer, integer, float, Trait.t() | nil) :: t()
+  def random_init(left, top, right, bottom, prob \\ 0.5, trait \\ nil) do
     seed =
       for x <- left..right, y <- top..bottom, :rand.uniform() <= prob do
-        color =
-          if x < 0 do
-            %Color{r: 255, g: 100, b: 100}
-          else
-            %Color{r: 100, g: 255, b: 100}
-          end
-
-        %Cell{x: x, y: y, trait: color}
+        %Cell{x: x, y: y, trait: trait}
       end
 
     Grid.from_seed(seed)
   end
 
+  @spec merge(Grid.t(), Grid.t()) :: Grid.t()
+  def merge(grid, other) do
+    %Grid{live_cells: Map.merge(grid.live_cells, other.live_cells)}
+  end
+
   defp index(cell), do: {{cell.x, cell.y}, cell}
+
+  # Access
 
   @spec all_cells(t()) :: [t()]
   def all_cells(grid), do: Map.values(grid.live_cells)
 
   @spec at(t(), pos_t()) :: Cell.t() | nil
   def at(grid, {x, y}), do: grid.live_cells[{x, y}]
+
+  # Iteration
 
   defp adjacent_positions({x, y}) do
     [

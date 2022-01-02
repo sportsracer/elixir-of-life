@@ -2,7 +2,7 @@ defmodule Renderer do
   @moduledoc "Render a grid onto a wxDC device context."
 
   @cellSize {1, 1}
-  @scale 10
+  @scale 5
   @background_color {30, 30, 30, 255}
 
   defp set_scale(dc) do
