@@ -1,104 +1,93 @@
 defmodule Grid do
-  @moduledoc "A game of life grid which extends infinitely to all dimensions."
+  @moduledoc "A cellular automaton grid which extends infinitely in two dimensions."
 
-  defstruct live_cells: %{}
-
+  # Cells are indexed by position in a map, for fast retrieval of neighbours.
   @type pos_t :: {integer, integer}
-  @type cells_t :: %{pos_t() => Cell.t()}
+  @type cell_map_t :: %{pos_t() => Cell.t()}
   @type t :: %__MODULE__{
-          live_cells: cells_t()
+          cells: cell_map_t
         }
+  defstruct cells: %{}
 
   # Construction
 
-  @spec from_seed(Enumerable.t(Cell.t())) :: t()
-  def from_seed(seed), do: %Grid{live_cells: seed |> Map.new(&index/1)}
+  @spec from_configuration(Enumerable.t({pos_t(), Cell.t()})) :: t()
+  def from_configuration(configuration), do: %Grid{cells: Map.new(configuration)}
 
-  @spec random_init(integer, integer, integer, integer, float, Trait.t() | nil) :: t()
-  def random_init(left, top, right, bottom, prob \\ 0.5, trait \\ nil) do
-    seed =
-      for x <- left..right, y <- top..bottom, :rand.uniform() <= prob do
-        %Cell{x: x, y: y, trait: trait}
+  @spec random_init(integer, integer, integer, integer, float, atom | nil, Trait.t() | nil) :: t()
+  def random_init(left, top, right, bottom, density \\ 0.5, state \\ nil, trait \\ nil) do
+    configuration =
+      for x <- left..right, y <- top..bottom, :rand.uniform() <= density do
+        {{x, y}, %Cell{state: state, trait: trait}}
       end
 
-    Grid.from_seed(seed)
+    Grid.from_configuration(configuration)
   end
 
-  @spec merge(Grid.t(), Grid.t()) :: Grid.t()
+  @spec merge(t(), t()) :: t()
   def merge(grid, other) do
-    %Grid{live_cells: Map.merge(grid.live_cells, other.live_cells)}
+    %Grid{cells: Map.merge(grid.cells, other.cells)}
   end
-
-  defp index(cell), do: {{cell.x, cell.y}, cell}
 
   # Access
 
-  @spec all_cells(t()) :: [t()]
-  def all_cells(grid), do: Map.values(grid.live_cells)
+  @spec live_positions(t()) :: [pos_t()]
+  def live_positions(grid), do: Map.keys(grid.cells)
 
-  @spec at(t(), pos_t()) :: Cell.t() | nil
-  def at(grid, {x, y}), do: grid.live_cells[{x, y}]
+  @spec live_cells(t()) :: [Cell.t()]
+  def live_cells(grid), do: Map.values(grid.cells)
 
   # Iteration
 
-  defp adjacent_positions({x, y}) do
-    [
-      {x - 1, y - 1},
-      {x, y - 1},
-      {x + 1, y - 1},
-      {x - 1, y},
-      {x + 1, y},
-      {x - 1, y + 1},
-      {x, y + 1},
-      {x + 1, y + 1}
-    ]
+  @spec live_neighbours(t(), pos_t(), module) :: [Cell.t()]
+  def live_neighbours(grid, pos, cell_auto) do
+    cell_auto.neighbourhood(pos)
+    |> Stream.map(&Map.get(grid.cells, &1))
+    |> Enum.reject(&is_nil/1)
   end
 
-  @spec neighbors_of(t(), pos_t()) :: MapSet.t(Cell.t())
-  def neighbors_of(grid, {x, y}) do
-    {x, y}
-    |> adjacent_positions()
-    |> Stream.map(&Map.get(grid.live_cells, &1))
-    |> Stream.reject(&is_nil/1)
-    |> MapSet.new()
+  @spec state_frequencies([Cell.t()]) :: %{atom => non_neg_integer}
+  def state_frequencies(cells) do
+    cells
+    |> Enum.frequencies_by(fn %Cell{state: state} -> state end)
   end
 
-  @spec adjacent_empty_positions(t(), pos_t()) :: MapSet.t(pos_t())
-  def adjacent_empty_positions(grid, {x, y}) do
-    {x, y}
-    |> adjacent_positions()
-    |> Stream.reject(&Map.has_key?(grid.live_cells, &1))
-    |> MapSet.new()
+  @spec adjacent_empty_positions(t(), pos_t(), module) :: [pos_t()]
+  def adjacent_empty_positions(grid, pos, cell_auto) do
+    cell_auto.neighbourhood(pos)
+    |> Enum.reject(&Map.has_key?(grid.cells, &1))
   end
 
-  @spec surviving_cells(Grid.t()) :: cells_t()
-  def surviving_cells(grid) do
-    grid.live_cells
-    |> Map.filter(fn {pos, _cell} ->
-      neighbors = Grid.neighbors_of(grid, pos)
-      Cell.survives?(MapSet.size(neighbors))
+  @spec surviving_cells(t(), module) :: cell_map_t()
+  def surviving_cells(grid, cell_auto) do
+    grid.cells
+    |> Map.map(fn {pos, cell} ->
+      neighbour_states = live_neighbours(grid, pos, cell_auto) |> state_frequencies()
+
+      case cell_auto.transition(cell.state, neighbour_states) do
+        nil -> nil
+        new_state -> %Cell{cell | state: new_state}
+      end
     end)
+    |> Map.reject(fn {_key, value} -> is_nil(value) end)
   end
 
-  @spec born_cells(Grid.t()) :: cells_t()
-  def born_cells(grid) do
-    all_adjacent_empty_cells =
-      Map.keys(grid.live_cells)
-      |> Stream.flat_map(fn pos -> adjacent_empty_positions(grid, pos) end)
-      |> Stream.uniq()
+  @spec spawned_cells(t(), module) :: cell_map_t()
+  def spawned_cells(grid, cell_auto) do
+    grid.cells
+    |> Map.keys()
+    |> Stream.flat_map(fn pos -> adjacent_empty_positions(grid, pos, cell_auto) end)
+    |> Stream.uniq()
+    |> Map.new(fn pos ->
+      live_neighbours = live_neighbours(grid, pos, cell_auto)
+      neighbour_states = state_frequencies(live_neighbours)
 
-    all_adjacent_empty_cells
-    |> Stream.map(fn pos ->
-      neighbors = Grid.neighbors_of(grid, pos)
-      Cell.spawn_cell(pos, neighbors)
+      {pos,
+       case cell_auto.transition(nil, neighbour_states) do
+         nil -> nil
+         new_state -> %Cell{state: new_state, trait: Cell.cross_traits(live_neighbours)}
+       end}
     end)
-    |> Stream.reject(&is_nil/1)
-    |> Map.new(&index/1)
-  end
-
-  def tick(grid) do
-    surviving_cells = Task.async(Grid, :surviving_cells, [grid])
-    born_cells = Task.async(Grid, :born_cells, [grid])
-    %Grid{live_cells: Map.merge(Task.await(surviving_cells), Task.await(born_cells))}
+    |> Map.reject(fn {_key, value} -> is_nil(value) end)
   end
 end

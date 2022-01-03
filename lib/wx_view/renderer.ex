@@ -25,10 +25,10 @@ defmodule Renderer do
     :wxDC.setPen(dc, :wxPen.new())
 
     cells
-    |> Enum.each(fn cell ->
+    |> Enum.each(fn {{x, y}, cell} ->
       TraitBrush.adjust_brush(cell.trait, cell_brush)
       :wxDC.setBrush(dc, cell_brush)
-      :wxDC.drawRectangle(dc, {cell.x, cell.y}, @cellSize)
+      :wxDC.drawRectangle(dc, {x, y}, @cellSize)
     end)
 
     :wxBrush.destroy(cell_brush)
@@ -39,7 +39,7 @@ defmodule Renderer do
 
     clear(dc)
 
-    draw_cells(dc, Grid.all_cells(grid))
+    draw_cells(dc, grid.cells)
   end
 end
 

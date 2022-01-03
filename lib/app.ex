@@ -4,9 +4,9 @@ defmodule ElixirOfLifeApp do
   defp make_grid() do
     # Set up colored quadrants
     grid =
-      Grid.random_init(0, -30, 30, 0, 0.3, Color.make(:green))
-      |> Grid.merge(Grid.random_init(-30, 0, 0, 30, 0.3, Color.make(:blue)))
-      |> Grid.merge(Grid.random_init(0, 0, 30, 30, 0.3, Color.make(:red)))
+      Grid.random_init(0, -30, 30, 0, 0.3, :live, Color.make(:green))
+      |> Grid.merge(Grid.random_init(-30, 0, 0, 30, 0.3, :live, Color.make(:blue)))
+      |> Grid.merge(Grid.random_init(0, 0, 30, 30, 0.3, :live, Color.make(:red)))
 
     # Attack it with gliders :)
     Enum.reduce(0..99, grid, fn i, acc ->
@@ -16,7 +16,7 @@ defmodule ElixirOfLifeApp do
 
       Grid.merge(
         acc,
-        Grid.Patterns.make(:glider, left, top, Color.make(:white))
+        Conway.Patterns.make(:glider, left, top, Color.make(:white))
       )
     end)
   end

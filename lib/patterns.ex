@@ -1,4 +1,4 @@
-defmodule Grid.Patterns do
+defmodule Conway.Patterns do
   @moduledoc "Create known game of life patterns."
 
   @patterns %{
@@ -21,8 +21,8 @@ defmodule Grid.Patterns do
   def make(pattern, left, top, trait \\ nil) do
     @patterns[pattern]
     |> offset(left, top)
-    |> Stream.map(fn {x, y} -> %Cell{x: x, y: y, trait: trait} end)
-    |> Grid.from_seed()
+    |> Stream.map(fn pos -> {pos, %Cell{trait: trait}} end)
+    |> Grid.from_configuration()
   end
 
   defp offset(positions, left, top) when is_nil(positions) == false do

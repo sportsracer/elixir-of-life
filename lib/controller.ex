@@ -10,7 +10,7 @@ defmodule GameAgent do
 
   def grid(), do: Agent.get(__MODULE__, & &1)
 
-  def tick(), do: Agent.update(__MODULE__, &Grid.tick(&1))
+  def tick(), do: Agent.update(__MODULE__, &Conway.tick(&1))
 end
 
 defprotocol View do
@@ -30,7 +30,7 @@ defmodule Controller do
 
     time = :timer.tc(GameAgent, :tick, []) |> elem(0) |> div(1_000)
 
-    "Iteration #{iteration}\t#{map_size(GameAgent.grid().live_cells)} cells\t#{time} ms"
+    "Iteration #{iteration}\t#{map_size(GameAgent.grid().cells)} cells\t#{time} ms"
     |> IO.puts()
 
     sleep_time = (@tick_duration - time) |> max(0)
