@@ -8,9 +8,7 @@ defmodule CellAuto do
 
       @spec tick(Grid.t()) :: Grid.t()
       def tick(grid) do
-        surviving_cells = Task.async(Grid, :surviving_cells, [grid, __MODULE__])
-        spawned_cells = Task.async(Grid, :spawned_cells, [grid, __MODULE__])
-        %Grid{cells: Map.merge(Task.await(surviving_cells), Task.await(spawned_cells))}
+        Grid.tick(grid, __MODULE__)
       end
     end
   end

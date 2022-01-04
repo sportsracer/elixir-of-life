@@ -9,6 +9,8 @@ defmodule Grid do
         }
   defstruct cells: %{}
 
+  @num_batches 8
+
   # Construction
 
   @spec from_configuration(Enumerable.t({pos_t(), Cell.t()})) :: t()
@@ -39,55 +41,65 @@ defmodule Grid do
 
   # Iteration
 
-  @spec live_neighbours(t(), pos_t(), module) :: [Cell.t()]
-  def live_neighbours(grid, pos, cell_auto) do
-    cell_auto.neighbourhood(pos)
-    |> Stream.map(&Map.get(grid.cells, &1))
-    |> Enum.reject(&is_nil/1)
-  end
-
-  @spec state_frequencies([Cell.t()]) :: %{atom => non_neg_integer}
-  def state_frequencies(cells) do
-    cells
-    |> Enum.frequencies_by(fn %Cell{state: state} -> state end)
-  end
-
-  @spec adjacent_empty_positions(t(), pos_t(), module) :: [pos_t()]
-  def adjacent_empty_positions(grid, pos, cell_auto) do
-    cell_auto.neighbourhood(pos)
-    |> Enum.reject(&Map.has_key?(grid.cells, &1))
-  end
-
-  @spec surviving_cells(t(), module) :: cell_map_t()
-  def surviving_cells(grid, cell_auto) do
-    grid.cells
-    |> Map.map(fn {pos, cell} ->
-      neighbour_states = live_neighbours(grid, pos, cell_auto) |> state_frequencies()
-
-      case cell_auto.transition(cell.state, neighbour_states) do
-        nil -> nil
-        new_state -> %Cell{cell | state: new_state}
-      end
+  # Determine which positions should be updated in the next iteration.
+  @spec determine_positions_to_update(t(), module) :: Enumerable.t(pos_t)
+  defp determine_positions_to_update(grid, cell_auto) do
+    Map.keys(grid.cells)
+    |> Stream.flat_map(fn pos ->
+      [pos | cell_auto.neighbourhood(pos)]
     end)
-    |> Map.reject(fn {_key, value} -> is_nil(value) end)
+    |> MapSet.new()
   end
 
-  @spec spawned_cells(t(), module) :: cell_map_t()
-  def spawned_cells(grid, cell_auto) do
-    grid.cells
-    |> Map.keys()
-    |> Stream.flat_map(fn pos -> adjacent_empty_positions(grid, pos, cell_auto) end)
-    |> Stream.uniq()
-    |> Map.new(fn pos ->
-      live_neighbours = live_neighbours(grid, pos, cell_auto)
-      neighbour_states = state_frequencies(live_neighbours)
+  # Assign positions to batches randomly, and schedule each batch for async execution.
+  @spec batch_updates(t(), module, Enumberable.t(pos_t)) :: [Task.t()]
+  defp batch_updates(grid, cell_auto, positions) do
+    positions
+    |> Enum.group_by(fn _ -> Enum.random(0..@num_batches) end)
+    |> Map.values()
+    |> Enum.map(&Task.async(__MODULE__, :update_positions, [grid, cell_auto, &1]))
+  end
 
-      {pos,
-       case cell_auto.transition(nil, neighbour_states) do
-         nil -> nil
-         new_state -> %Cell{state: new_state, trait: Cell.cross_traits(live_neighbours)}
-       end}
-    end)
-    |> Map.reject(fn {_key, value} -> is_nil(value) end)
+  @doc "Determine the new cell (or nil) at this position in the next iteration."
+  @spec update_position(t(), module(), pos_t) :: Cell.t() | nil
+  def update_position(grid, cell_auto, pos) do
+    cell = grid.cells[pos]
+
+    # Determine frequencies of neighbours
+    neighbours = for neighbour <- cell_auto.neighbourhood(pos), not is_nil(neighbour_cell = grid.cells[neighbour]) do
+      neighbour_cell
+    end
+    neighbour_states = neighbours |> Enum.frequencies_by(fn %Cell{state: state} -> state end)
+
+    # Return a dead, surviving or newly spawned cell
+    case {cell, cell_auto.transition(cell && cell.state, neighbour_states)} do
+      {_, nil} -> nil
+      {nil, new_state} -> %Cell{state: new_state, trait: Cell.cross_traits(neighbours)}
+      {cell = %Cell{}, new_state} -> %Cell{cell | state: new_state}
+    end
+  end
+
+  @doc "Determine the new cells for multiple positions, returning results as a map."
+  @spec update_positions(t(), module, Enumerable.t(pos_t)) :: %{pos_t => Cell.t()}
+  def update_positions(grid, cell_auto, positions) do
+    for pos <- positions, not is_nil(cell = update_position(grid, cell_auto, pos)), into: %{} do
+      {pos, cell}
+    end
+  end
+
+  @spec tick(Grid.t(), module) :: Grid.t()
+  def tick(grid, cell_auto) do
+    positions_to_update = determine_positions_to_update(grid, cell_auto)
+
+    batches = batch_updates(grid, cell_auto, positions_to_update)
+
+    %Grid{
+      # Merge results of all batches into one map
+      cells:
+        batches
+        |> Enum.reduce(%{}, fn task, new_cells ->
+          Map.merge(new_cells, Task.await(task))
+        end)
+    }
   end
 end
