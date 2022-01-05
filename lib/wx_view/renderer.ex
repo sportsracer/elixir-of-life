@@ -20,15 +20,23 @@ defmodule Renderer do
     :wxBrush.destroy(backgroundBrush)
   end
 
+  @spec draw_cells(any, any) :: any
   defp draw_cells(dc, cells) do
     cell_brush = :wxBrush.new()
     :wxDC.setPen(dc, :wxPen.new())
 
+    # Group cells by trait – this improves drawing performance since the brush doesn't have to be
+    # set so often.
     cells
-    |> Enum.each(fn {{x, y}, cell} ->
-      TraitBrush.adjust_brush(cell.trait, cell_brush)
+    |> Enum.group_by(fn {_pos, cell} -> cell.trait end, fn {pos, _cell} -> pos end)
+    |> Enum.each(fn {trait, positions} ->
+      TraitBrush.adjust_brush(trait, cell_brush)
       :wxDC.setBrush(dc, cell_brush)
-      :wxDC.drawRectangle(dc, {x, y}, @cellSize)
+
+      positions
+      |> Enum.each(fn {x, y} ->
+        :wxDC.drawRectangle(dc, {x, y}, @cellSize)
+      end)
     end)
 
     :wxBrush.destroy(cell_brush)

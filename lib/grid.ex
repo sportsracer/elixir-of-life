@@ -66,9 +66,12 @@ defmodule Grid do
     cell = grid.cells[pos]
 
     # Determine frequencies of neighbours
-    neighbours = for neighbour <- cell_auto.neighbourhood(pos), not is_nil(neighbour_cell = grid.cells[neighbour]) do
-      neighbour_cell
-    end
+    neighbours =
+      for neighbour <- cell_auto.neighbourhood(pos),
+          not is_nil(neighbour_cell = grid.cells[neighbour]) do
+        neighbour_cell
+      end
+
     neighbour_states = neighbours |> Enum.frequencies_by(fn %Cell{state: state} -> state end)
 
     # Return a dead, surviving or newly spawned cell
