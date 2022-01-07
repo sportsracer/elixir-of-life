@@ -8,6 +8,7 @@ defmodule Window do
 
   # TODO Can we get named constants for key codes from wxWidgets?
   @key_space 32
+  @key_q 81
 
   def start_link() do
     :wx_object.start_link(__MODULE__, [], [])
@@ -38,16 +39,21 @@ defmodule Window do
   end
 
   def handle_event(
-        {:wx, _, _, _, {:wxKey, :key_down, _, _, @key_space, _, _, _, _, _, _, _}},
-        state = %{listener_pid: listener_pid}
-      ),
-      do: send(listener_pid, :toggle_pause) && {:noreply, state}
-
-  def handle_event(
-        {:wx, _, _, _, {:wxKey, :key_down, _, _, _key_code, _, _, _, _, _, _, _}},
+        {:wx, _, _, _, {:wxKey, :key_down, _, _, key_code, _, _, _, _, _, _, _}},
         state
       ),
-      do: {:noreply, state}
+      do: handle_key_down(key_code, state)
+
+  @spec handle_key_down(integer, %{}) :: {atom, %{}} | {atom, atom, %{}}
+  defp handle_key_down(key_code, state)
+
+  defp handle_key_down(@key_space, state = %{listener_pid: listener_pid}),
+    do: send(listener_pid, :toggle_pause) && {:noreply, state}
+
+  defp handle_key_down(@key_q, state),
+    do: {:stop, :normal, state}
+
+  defp handle_key_down(_key_code, state), do: {:noreply, state}
 
   def handle_sync_event({:wx, _, _, _, {:wxPaint, :paint}}, _, %{panel: panel, grid: grid}) do
     dc = :wxPaintDC.new(panel)
