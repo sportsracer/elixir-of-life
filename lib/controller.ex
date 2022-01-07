@@ -16,8 +16,11 @@ end
 defprotocol View do
   @moduledoc "View interface."
 
-  @spec render(t, Grid.t()) :: atom()
+  @spec render(t, Grid.t()) :: atom
   def render(view, grid)
+
+  @spec add_listener(t, pid) :: atom
+  def add_listener(view, listener_pid)
 end
 
 defmodule Controller do
@@ -36,12 +39,24 @@ defmodule Controller do
     sleep_time = (@tick_duration - time) |> max(0)
     :timer.sleep(sleep_time)
 
+    receive do
+      :toggle_pause ->
+        receive do
+          # Wait for another toggle pause event before resuming
+          :toggle_pause -> :ok
+        end
+    after
+      0 -> nil
+    end
+
     start_game_loop(controller, iteration + 1)
   end
 
   def start_link(grid, view) do
     GameAgent.start_link(grid)
     controller = %Controller{view: view}
-    Task.start(fn -> start_game_loop(controller) end)
+    {:ok, pid} = Task.start(fn -> start_game_loop(controller) end)
+    View.add_listener(view, pid)
+    {:ok, pid}
   end
 end

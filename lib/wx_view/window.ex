@@ -6,6 +6,9 @@ defmodule Window do
   @title "Elixir of Life"
   @size {600, 600}
 
+  # TODO Can we get named constants for key codes from wxWidgets?
+  @key_space 32
+
   def start_link() do
     :wx_object.start_link(__MODULE__, [], [])
   end
@@ -18,6 +21,7 @@ defmodule Window do
 
     panel = :wxPanel.new(frame, [])
     :wxPanel.connect(panel, :paint, [:callback])
+    :wxPanel.connect(panel, :key_down)
     :wxFrame.show(frame)
 
     state = %{panel: panel, grid: %Grid{}}
@@ -33,6 +37,18 @@ defmodule Window do
     {:stop, :normal, state}
   end
 
+  def handle_event(
+        {:wx, _, _, _, {:wxKey, :key_down, _, _, @key_space, _, _, _, _, _, _, _}},
+        state = %{listener_pid: listener_pid}
+      ),
+      do: send(listener_pid, :toggle_pause) && {:noreply, state}
+
+  def handle_event(
+        {:wx, _, _, _, {:wxKey, :key_down, _, _, _key_code, _, _, _, _, _, _, _}},
+        state
+      ),
+      do: {:noreply, state}
+
   def handle_sync_event({:wx, _, _, _, {:wxPaint, :paint}}, _, %{panel: panel, grid: grid}) do
     dc = :wxPaintDC.new(panel)
     Renderer.render(grid, dc)
@@ -43,6 +59,11 @@ defmodule Window do
   def handle_call({:render, grid}, _from, state = %{panel: panel}) do
     new_state = %{state | grid: grid}
     :wxPanel.refresh(panel)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call({:add_listener, listener_pid}, _from, state) do
+    new_state = Map.put(state, :listener_pid, listener_pid)
     {:reply, :ok, new_state}
   end
 end
