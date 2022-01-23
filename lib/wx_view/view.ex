@@ -6,6 +6,7 @@ defmodule WxView do
         }
   defstruct [:window_pid]
 
+  @spec create :: t
   def create() do
     {:wx_ref, _, _, pid} = Window.start_link()
     "Started view #{inspect(pid)}" |> IO.puts()

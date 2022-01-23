@@ -2,6 +2,7 @@ defmodule MooreNeighbourhood do
   @moduledoc "The so-called Moore Neighbourhood is just the cells horizontally, vertically and
   diagonally adjacent on a two-dimensional grid."
 
+  @spec __using__(list | nil) :: tuple
   defmacro __using__(_opts) do
     quote do
       # Inject the neighbourhood function into the client class. Just importing it isn't enough

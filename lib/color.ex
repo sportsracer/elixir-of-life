@@ -10,7 +10,7 @@ defmodule Color do
           b: c
         }
 
-  @spec make(atom()) :: Color.t()
+  @spec make(atom) :: t
   def make(_color)
 
   def make(:red), do: %Color{r: 200, g: 100, b: 100}

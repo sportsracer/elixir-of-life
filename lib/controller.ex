@@ -3,13 +3,17 @@ defmodule GameAgent do
 
   use Agent
 
+  @spec start_link(Grid.t()) :: {:ok, pid}
   def start_link(grid) do
     {:ok, pid} = Agent.start_link(fn -> grid end, name: __MODULE__)
     "Started game agent #{inspect(pid)}" |> IO.puts()
+    {:ok, pid}
   end
 
+  @spec grid :: Grid.t()
   def grid(), do: Agent.get(__MODULE__, & &1)
 
+  @spec tick :: :ok
   def tick(), do: Agent.update(__MODULE__, &Conway.tick(&1))
 end
 
@@ -52,6 +56,7 @@ defmodule Controller do
     start_game_loop(controller, iteration + 1)
   end
 
+  @spec start_link(Grid.t(), View.t()) :: {:ok, pid}
   def start_link(grid, view) do
     GameAgent.start_link(grid)
     controller = %Controller{view: view}

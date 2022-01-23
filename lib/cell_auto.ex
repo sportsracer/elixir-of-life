@@ -2,6 +2,7 @@ defmodule CellAuto do
   @moduledoc "Abstract implementation of a cellular automaton, which depends on a concrete
   definition of a neighbourhood function and transition rules."
 
+  @spec __using__(list | nil) :: tuple
   defmacro __using__(_opts) do
     quote do
       @behaviour CellAuto

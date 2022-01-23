@@ -3,11 +3,11 @@ defmodule Cell do
 
   @type t :: %__MODULE__{
           state: atom,
-          trait: Trait.t()
+          trait: Trait.t() | nil
         }
   defstruct state: :live, trait: nil
 
-  @spec cross_traits(Enumerable.t(Cell.t())) :: Trait.t()
+  @spec cross_traits(Enumerable.t(t)) :: Trait.t()
   def cross_traits(cells) do
     [trait | other_traits] = cells |> Enum.map(fn cell -> cell.trait end)
     Trait.cross(trait, other_traits)

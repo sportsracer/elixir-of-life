@@ -10,10 +10,12 @@ defmodule Window do
   @key_space 32
   @key_q 81
 
+  @spec start_link :: any
   def start_link() do
     :wx_object.start_link(__MODULE__, [], [])
   end
 
+  @spec init(list | nil) :: {any, map}
   def init(_args \\ []) do
     wx = :wx.new()
     frame = :wxFrame.new(wx, -1, @title, size: @size)
@@ -29,14 +31,15 @@ defmodule Window do
     {frame, state}
   end
 
+  @spec handle_event({:wx, any, any, any, tuple}, map) :: tuple
+  def handle_event(event, state)
+
   def handle_event({:wx, _, _, _, {:wxSize, :size, size, _}}, state = %{panel: panel}) do
     :wxPanel.setSize(panel, size)
     {:noreply, state}
   end
 
-  def handle_event({:wx, _, _, _, {:wxClose, :close_window}}, state) do
-    {:stop, :normal, state}
-  end
+  def handle_event({:wx, _, _, _, {:wxClose, :close_window}}, state), do: {:stop, :normal, state}
 
   def handle_event(
         {:wx, _, _, _, {:wxKey, :key_down, _, _, key_code, _, _, _, _, _, _, _}},
@@ -44,7 +47,7 @@ defmodule Window do
       ),
       do: handle_key_down(key_code, state)
 
-  @spec handle_key_down(integer, %{}) :: {atom, %{}} | {atom, atom, %{}}
+  @spec handle_key_down(integer, map) :: tuple
   defp handle_key_down(key_code, state)
 
   defp handle_key_down(@key_space, state = %{listener_pid: listener_pid}),
@@ -55,12 +58,16 @@ defmodule Window do
 
   defp handle_key_down(_key_code, state), do: {:noreply, state}
 
+  @spec handle_sync_event({:wx, any, any, any, tuple}, any, map) :: :ok
   def handle_sync_event({:wx, _, _, _, {:wxPaint, :paint}}, _, %{panel: panel, grid: grid}) do
     dc = :wxPaintDC.new(panel)
     Renderer.render(grid, dc)
     :wxPaintDC.destroy(dc)
     :ok
   end
+
+  @spec handle_call(tuple, pid, map) :: tuple
+  def handle_call(request, from, state)
 
   def handle_call({:render, grid}, _from, state = %{panel: panel}) do
     new_state = %{state | grid: grid}

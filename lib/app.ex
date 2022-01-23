@@ -3,10 +3,12 @@ defmodule ElixirOfLifeApp do
 
   defp make_grid() do
     # Set up colored quadrants
+    extension = 30
+
     grid =
-      Grid.random_init(0, -30, 30, 0, 0.3, :live, Color.make(:green))
-      |> Grid.merge(Grid.random_init(-30, 0, 0, 30, 0.3, :live, Color.make(:blue)))
-      |> Grid.merge(Grid.random_init(0, 0, 30, 30, 0.3, :live, Color.make(:red)))
+      Grid.random_init(0, -extension, extension, 0, 0.3, :live, Color.make(:green))
+      |> Grid.merge(Grid.random_init(-extension, 0, 0, extension, 0.3, :live, Color.make(:blue)))
+      |> Grid.merge(Grid.random_init(0, 0, extension, extension, 0.3, :live, Color.make(:red)))
 
     # Attack it with gliders :)
     Enum.reduce(0..99, grid, fn i, acc ->
@@ -21,6 +23,7 @@ defmodule ElixirOfLifeApp do
     end)
   end
 
+  @spec start(Application.start_type(), list) :: {:ok, pid}
   def start(_type, _args) do
     "Started app #{inspect(self())}" |> IO.puts()
 
